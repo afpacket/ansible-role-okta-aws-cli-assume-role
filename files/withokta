@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+command="$1"
+profile=$2
+shift;
+shift;
+env OKTA_PROFILE=$profile java -classpath ~/.okta/okta-aws-cli.jar com.okta.tools.WithOkta $command $@

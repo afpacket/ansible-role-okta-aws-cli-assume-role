@@ -1,0 +1,80 @@
+# non sudo tasks
+- block: 
+    - name: .okta in home directory
+      file:
+        path: "{{ ansible_env.HOME }}/.okta" 
+        state: directory
+        owner: "{{ ansible_env.USER }}"
+        group: "{{ ansible_env.USER }}"
+        mode: 0700
+        seuser: system_u
+        serole: object_r
+        setype: user_home_t 
+        selevel: s0
+    
+    - name: copy config.properties
+      template:
+        src: config.properties.j2 
+        dest: "{{ ansible_env.HOME }}/.okta/config.properties"
+        owner: "{{ ansible_env.USER }}"
+        group: "{{ ansible_env.USER }}"
+        mode: 0600
+        seuser: system_u
+        serole: object_r
+        setype: user_home_t
+        selevel: s0
+
+    - name: okta jar
+      get_url:
+        url: "https://github.com/oktadeveloper/okta-aws-cli-assume-role/releases/download/v{{ okta_awscli_version }}/okta-aws-cli-{{ okta_awscli_version }}.jar"
+        dest: "{{ ansible_env.HOME }}/.okta/okta-aws-cli.jar"
+        owner: "{{ ansible_env.USER }}" 
+        group: "{{ ansible_env.USER }}"
+        mode: 0755
+        seuser: system_u
+        serole: object_r
+        setype: user_home_t
+        selevel: s0
+
+  become: false
+  when: ansible_os_family == "RedHat"
+
+# sudo tasks
+- block:
+    - name: prerequisite packages
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "awscli"
+        - "java-{{ java_version }}-openjdk-headless"
+    
+    - name: copy okta bash functions
+      copy:
+        src: bash_functions
+        dest: "/etc/profile.d/okta_awscli.sh"
+        owner: root
+        group: root
+        mode: 0644
+        seuser: system_u
+        serole: object_r
+        setype: bin_t
+        selevel: s0
+    
+    - name: copy okta-listroles and withokta scripts to /usr/local/bin
+      copy: 
+        src: "{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        owner: root
+        group: root
+        mode: 0755
+        seuser: system_u
+        serole: object_r
+        setype: bin_t
+        selevel: s0
+      with_items:
+        - okta-listroles
+        - withokta
+
+  become: true
+  when: ansible_os_family == "RedHat"
