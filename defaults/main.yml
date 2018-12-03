@@ -1,6 +1,6 @@
 java_version: "1.8.0"
 
-okta_awscli_version: "1.0.5"
+okta_awscli_version: "1.0.6"
 
 # config.properties
 OKTA_ORG: "acmecorp.okta.com.changeme.local"
