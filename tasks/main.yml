@@ -7,10 +7,6 @@
         owner: "{{ ansible_env.USER }}"
         group: "{{ ansible_env.USER }}"
         mode: 0700
-        seuser: system_u
-        serole: object_r
-        setype: user_home_t 
-        selevel: s0
     
     - name: copy config.properties
       template:
@@ -19,10 +15,6 @@
         owner: "{{ ansible_env.USER }}"
         group: "{{ ansible_env.USER }}"
         mode: 0600
-        seuser: system_u
-        serole: object_r
-        setype: user_home_t
-        selevel: s0
 
     - name: okta jar
       get_url:
@@ -31,13 +23,21 @@
         owner: "{{ ansible_env.USER }}" 
         group: "{{ ansible_env.USER }}"
         mode: 0755
+
+    - name: set selinux contexts
+      file:
+        path: "{{ item }}"
         seuser: system_u
         serole: object_r
         setype: user_home_t
         selevel: s0
+      with_items:
+        - "{{ ansible_env.HOME }}/.okta"
+        - "{{ ansible_env.HOME }}/.okta/config.properties"
+        - "{{ ansible_env.HOME }}/.okta/okta-aws-cli.jar"
+      when: ansible_os_family == "RedHat"
 
   become: false
-  when: ansible_os_family == "RedHat"
 
 # sudo tasks
 - block:
