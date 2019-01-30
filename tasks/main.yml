@@ -1,3 +1,23 @@
+- name: set fact for user group based on system (MacOS)
+  set_fact:
+    user_group: "staff"
+  when: ansible_system == "Darwin"
+
+- name: set fact for user group based on system (Linux)
+  set_fact:
+    user_group: "{{ ansible_env.USER }}"
+  when: ansible_system == "Linux"
+
+- name: set fact for root group based on system (MacOS)
+  set_fact:
+    root_group: "wheel"
+  when: ansible_system == "Darwin"
+
+- name: set fact for root group based on system (Linux)
+  set_fact:
+    root_group: "root"
+  when: ansible_system == "Linux"
+
 # non sudo tasks
 - block: 
     - name: .okta in home directory
@@ -5,7 +25,7 @@
         path: "{{ ansible_env.HOME }}/.okta" 
         state: directory
         owner: "{{ ansible_env.USER }}"
-        group: "{{ ansible_env.USER }}"
+        group: "{{ user_group }}"
         mode: 0700
     
     - name: copy config.properties
@@ -13,7 +33,7 @@
         src: config.properties.j2 
         dest: "{{ ansible_env.HOME }}/.okta/config.properties"
         owner: "{{ ansible_env.USER }}"
-        group: "{{ ansible_env.USER }}"
+        group: "{{ user_group }}"
         mode: 0600
 
     - name: remove old okta jar
@@ -26,7 +46,7 @@
         url: "https://github.com/oktadeveloper/okta-aws-cli-assume-role/releases/download/v{{ okta_awscli_version }}/okta-aws-cli-{{ okta_awscli_version }}.jar"
         dest: "{{ ansible_env.HOME }}/.okta/okta-aws-cli.jar"
         owner: "{{ ansible_env.USER }}" 
-        group: "{{ ansible_env.USER }}"
+        group: "{{ user_group }}"
         mode: 0755
 
     - name: set selinux contexts
@@ -53,33 +73,38 @@
       with_items:
         - "awscli"
         - "java-{{ java_version }}-openjdk-headless"
-    
+      when: ansible_os_family == "RedHat"
+
     - name: copy okta bash functions
       copy:
         src: bash_functions
         dest: "/etc/profile.d/okta_awscli.sh"
         owner: root
-        group: root
+        group: "{{ root_group }}"
         mode: 0644
-        seuser: system_u
-        serole: object_r
-        setype: bin_t
-        selevel: s0
     
     - name: copy okta-listroles and withokta scripts to /usr/local/bin
       copy: 
         src: "{{ item }}"
         dest: "/usr/local/bin/{{ item }}"
         owner: root
-        group: root
+        group: "{{ root_group }}"
         mode: 0755
+      with_items:
+        - okta-listroles
+        - withokta
+
+    - name: set selinux contexts
+      file:
+        path: "{{ item }}"
         seuser: system_u
         serole: object_r
         setype: bin_t
         selevel: s0
       with_items:
-        - okta-listroles
-        - withokta
+        - /etc/profile.d/okta_awscli.sh
+        - /usr/local/bin/okta-listroles
+        - /usr/local/bin/withokta
+      when: ansible_os_family == "RedHat"
 
   become: true
-  when: ansible_os_family == "RedHat"
